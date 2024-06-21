@@ -1,0 +1,55 @@
+pipeline {
+    agent { label 'aws' }
+    environment {
+        TOKENAWS = credentials('controller-ssh-key2')
+        TEST_RESULT_FILE = 'test_result.txt' // File to store test result
+    }
+    stages {
+        stage('Deploy to Testing') {
+            steps {
+                sh 'ssh -T -oStrictHostKeyChecking=no -i "$TOKENAWS" ec2-user@54.227.2.251 "sudo dnf update; sudo dnf install git -y; sudo dnf install -y httpd; sudo systemctl start httpd; sudo rm -Rf /var/www/html/; sudo git clone https://github.com/Cluster0410/FinalExamDevops2"'
+            script{
+                try{
+                    //Install Selenium webdriver
+                    sh 'npm install selenium-webdriver'
+                    
+                    //Run the test and capture the output
+                    def output = sh(script: 'node test/test1.js', returnStdout: true).trim()
+
+                    //Debugging printing the output
+                    echo "Test Output: ${output}"
+
+                    //Write the result to a file
+
+                    if(output.contains('Test Success')){
+                        writeFile file: env.TEST_RESULT_FILE, text: 'true'
+                    }else{
+                        writeFile file: env.TEST_RESULT_FILE, text: 'false'
+                    }
+                }catch (Exception e) {
+                    echo "Test failed: ${e.message}"
+                    writeFile file: env.TEST_RESULT_FILE, text: 'false'
+                    
+                }
+            }
+             }
+        } 
+        stage('Deploy to Staging') {
+            steps {
+                sh 'ssh -T -oStrictHostKeyChecking=no -i "$TOKENAWS" ec2-user@54.81.81.143 "sudo dnf update; sudo dnf install git -y; sudo dnf install -y httpd; sudo systemctl start httpd; sudo rm -Rf /var/www/html/; sudo git clone https://github.com/Cluster0410/FinalExamDevops2"'
+            }
+        }
+        
+        stage('Deploy to Production_Env1') {
+            steps {
+                sh 'ssh -T -oStrictHostKeyChecking=no -i "$TOKENAWS" ec2-user@44.202.146.229 "sudo dnf update; sudo dnf install git -y; sudo dnf install -y httpd; sudo systemctl start httpd; sudo rm -Rf /var/www/html/; sudo git clone https://github.com/Cluster0410/FinalExamDevops2"'
+            }
+        }
+        
+        stage('Deploy to Production_Env2') {
+            steps {
+                sh 'ssh -T -oStrictHostKeyChecking=no -i "$TOKENAWS" ec2-user@3.84.181.223 "sudo dnf update; sudo dnf install git -y; sudo dnf install -y httpd; sudo systemctl start httpd; sudo rm -Rf /var/www/html/; sudo git clone https://github.com/Cluster0410/FinalExamDevops2"'
+            }
+        }
+    }
+}
